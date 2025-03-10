@@ -142,7 +142,6 @@ class LoadUnit(implicit p: Parameters) extends XSModule
     val tl_d_channel  = Input(new DcacheToLduForwardIO)
     val forward_mshr  = Flipped(new LduToMissqueueForwardIO)
    // val refill        = Flipped(ValidIO(new Refill))
-    val l2_hint       = Input(Valid(new L2ToL1Hint))
     val tlb_hint      = Flipped(new TlbHintReq)
     // fast wakeup
     // TODO: implement vector fast wakeup
@@ -1870,6 +1869,7 @@ class LoadUnit(implicit p: Parameters) extends XSModule
   XSPerfAccumulate("s0_software_prefetch_fire",    s0_fire && s0_sel_src.prf && s0_src_select_vec(int_iss_idx))
   XSPerfAccumulate("s0_hardware_prefetch_blocked", io.prefetch_req.valid && !s0_hw_prf_select)
   XSPerfAccumulate("s0_hardware_prefetch_total",   io.prefetch_req.valid)
+  XSPerfAccumulate("s0_hardware_prefetch_blocked_with_highconf", io.prefetch_req.valid && !s0_hw_prf_select && io.prefetch_req.bits.confidence > 0.U)
 
   XSPerfAccumulate("s3_rollback_total",             io.rollback.valid)
   XSPerfAccumulate("s3_rep_frm_fetch_rollback",     io.rollback.valid && s3_rep_frm_fetch)

@@ -1294,6 +1294,10 @@ class RobImp(override val wrapper: Rob)(implicit p: Parameters, params: BackendP
 
   def ifCommitReg(counter: UInt): UInt = Mux(isCommitReg, counter, 0.U)
 
+  val totalCommitCnt = RegInit(0.U(32.W))
+  dontTouch(totalCommitCnt)
+  totalCommitCnt := totalCommitCnt + ifCommitReg(trueCommitCnt)
+
   val commitDebugUop = deqPtrVec.map(_.value).map(debug_microOp(_))
   XSPerfAccumulate("clock_cycle", 1.U)
   QueuePerf(RobSize, numValidEntries, numValidEntries === RobSize.U)

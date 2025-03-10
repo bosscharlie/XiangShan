@@ -444,6 +444,7 @@ class MissEntry(edge: TLEdgeOut, reqNum: Int)(implicit p: Parameters) extends DC
   val w_mainpipe_resp = RegInit(true.B)
   val w_refill_resp = RegInit(true.B)
   val w_l2hint = RegInit(true.B)
+  val hint_with_data = RegInit(false.B)
 
   val mainpipe_req_fired = RegInit(true.B)
 
@@ -513,6 +514,7 @@ class MissEntry(edge: TLEdgeOut, reqNum: Int)(implicit p: Parameters) extends DC
     w_grantfirst := false.B
     w_grantlast := false.B
     w_l2hint := false.B
+    hint_with_data := false.B
     mainpipe_req_fired := false.B
 
     when(miss_req_pipe_reg_bits.isFromStore) {
@@ -589,7 +591,7 @@ class MissEntry(edge: TLEdgeOut, reqNum: Int)(implicit p: Parameters) extends DC
     new_mask(i) := Mux(req.isFromStore, req_store_mask(rowBytes * (i + 1) - 1, rowBytes * i), 0.U)
   }
 
-  val hasData = RegInit(true.B)
+  val hasData = RegInit(false.B)
   val isDirty = RegInit(false.B)
   when (io.mem_grant.fire) {
     w_grantfirst := true.B
@@ -651,6 +653,7 @@ class MissEntry(edge: TLEdgeOut, reqNum: Int)(implicit p: Parameters) extends DC
 
   when (io.l2_hint.valid) {
     w_l2hint := true.B
+    hint_with_data := io.l2_hint.bits.isGrantData
   }
 
   def before_req_sent_can_merge(new_req: MissReqWoStoreData): Bool = {
@@ -802,7 +805,7 @@ class MissEntry(edge: TLEdgeOut, reqNum: Int)(implicit p: Parameters) extends DC
   io.mem_finish.bits := grantack
 
   // Send mainpipe_req when receive hint from L2 or receive data without hint
-  io.main_pipe_req.valid := !s_mainpipe_req && (w_l2hint || w_grantlast)
+  io.main_pipe_req.valid := !s_mainpipe_req && Mux(hint_with_data, RegNext(w_l2hint), w_l2hint) && req_valid
   io.main_pipe_req.bits := DontCare
   io.main_pipe_req.bits.miss := true.B
   io.main_pipe_req.bits.miss_id := io.id
@@ -834,7 +837,17 @@ class MissEntry(edge: TLEdgeOut, reqNum: Int)(implicit p: Parameters) extends DC
 
   XSPerfAccumulate("miss_refill_mainpipe_req", io.main_pipe_req.fire)
   XSPerfAccumulate("miss_refill_without_hint", io.main_pipe_req.fire && !mainpipe_req_fired && !w_l2hint)
+  when (io.main_pipe_req.fire && !mainpipe_req_fired) {
+    assert(w_l2hint)
+  }
+  when(RegNextN(io.main_pipe_req.fire && !mainpipe_req_fired, 2)) {
+    assert(io.refill_info.valid)
+  }
   XSPerfAccumulate("miss_refill_replay", io.main_pipe_replay)
+  XSPerfAccumulate("hint_latency_4", RegNextN(w_l2hint && !RegNext(w_l2hint), 4) && (w_grantlast && !RegNext(w_grantlast)))
+  XSPerfAccumulate("hint_latency_3", RegNextN(w_l2hint && !RegNext(w_l2hint), 3) && (w_grantlast && !RegNext(w_grantlast)))
+  XSPerfAccumulate("hint_latency_2", RegNextN(w_l2hint && !RegNext(w_l2hint), 2) && (w_grantlast && !RegNext(w_grantlast)))
+  XSPerfAccumulate("hint_latency_1", RegNextN(w_l2hint && !RegNext(w_l2hint), 1) && (w_grantlast && !RegNext(w_grantlast)))
 
   val w_grantfirst_forward_info = Mux(isKeyword, w_grantlast, w_grantfirst)
   val w_grantlast_forward_info = Mux(isKeyword, w_grantfirst, w_grantlast)
@@ -1110,7 +1123,7 @@ class MissQueue(edge: TLEdgeOut, reqNum: Int)(implicit p: Parameters) extends DC
         e.io.queryME(j).req.bits  := io.queryMQ(j).req.bits.toMissReqWoStoreData()
       }
 
-      when(io.l2_hint.bits.sourceId === i.U) {
+      when(io.l2_hint.bits.sourceId < cfg.nMissEntries.U && io.l2_hint.bits.sourceId === i.U) {
         e.io.l2_hint <> io.l2_hint
       } .otherwise {
         e.io.l2_hint.valid := false.B

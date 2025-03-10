@@ -213,7 +213,7 @@ class StreamBitVectorArray(implicit p: Parameters) extends XSModule with HasStre
     replacement.access(s0_index)
   }
 
-  val stream_pf_train_debug_table = ChiselDB.createTable("StreamTrainTraceTable" + p(XSCoreParamsKey).HartId.toString, new StreamTrainTraceEntry, basicDB = false)
+  val stream_pf_train_debug_table = ChiselDB.createTable("StreamTrainTraceTable" + p(XSCoreParamsKey).HartId.toString, new StreamTrainTraceEntry, basicDB = true)
 
   val spf_log_enable = s0_valid
   val spf_log_data = Wire(new StreamTrainTraceEntry)
