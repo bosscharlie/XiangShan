@@ -320,8 +320,8 @@ class WritebackQueue(edge: TLEdgeOut)(implicit p: Parameters) extends DCacheModu
     //val probe_ttob_check_resp = ValidIO(new ProbeToBCheckResp)
 
     // 5 miss_req to check: 3*LoadPipe + 1*MainPipe + 1*missReqArb_out
-    val miss_req_conflict_check = Vec(LoadPipelineWidth + 2, Flipped(Valid(UInt())))
-    val block_miss_req = Vec(LoadPipelineWidth + 2, Output(Bool()))
+    val miss_req_conflict_check = Vec(LoadPipelineWidth + 5, Flipped(Valid(UInt())))
+    val block_miss_req = Vec(LoadPipelineWidth + 5, Output(Bool()))
   })
 
   require(cfg.nReleaseEntries > cfg.nMissEntries)
